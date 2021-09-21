@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mach Eight - Test by Xan217</title>
+  <script src="https://unpkg.com/vue"></script>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+</head>
+<body>
+  <div id="app">
+    <v-container>
+      <v-row class="text-body-2 ma-20">
+        <v-col
+          cols="12"
+          md="3"
+          class="column flex-center"
+        >
+          <img src="https://imgur.com/Kw0Lt7E.png" width="70%" alt="">
+          <img src="https://imgur.com/9DDSxHs.png" width="20%" alt="">
+        </v-col>
+
+        <v-col
+          cols="12"
+          md="9"
+          class="column"
+        >
+          <h2 class="text-heading-2">Mach Eight - Filter data Test</h2>
+          <h3 class="text-heading-3 grey">by Renne [xan217] Castellanos (16 Ball Creations)</h3>
+          <br />
+          <p class="text-body-1">The algorithm loads the data and creates a "hash table" (in a single row) to make the filter in O(n).</p>
+        </v-col>
+
+      </v-row>
+      <v-row class="text-body-2 ma-20">
+        <v-col
+          cols="12"
+          md="6"
+        >
+          <v-text-field
+            type="number" 
+            name="size" 
+            id="size" 
+            min="0"
+            label="Total size in inches"
+            v-model="inputValue"
+            step="1"
+            :disabled="loading"
+          />
+        </v-col>
+        <v-col
+          cols="12"
+          md="6"
+          class="pa-3"
+        >
+          <div class="text-button" v-if="loading">
+            <v-skeleton-loader
+              v-bind="loading"
+              type="heading"
+              tile="true"
+            ></v-skeleton-loader>
+            <br />
+            <v-skeleton-loader
+              v-bind="loading"
+              type="text@10"
+              tile="true"
+            ></v-skeleton-loader>
+          </div>
+          <div class="text-body-1" v-if="cantBeReached" color="red">
+            <h4 class="red my-20">Server can't be reached</h4>
+            <p>Please refresh the page </p>
+          </div>
+          <div v-if="!cantBeReached && !loading">
+            <h4 class="green my-20">Players pairs results</h4>
+          </div>
+          <div class="players" v-if="playersFiltered.length > 0">
+            <div v-for="(playerPair, index) in playersFiltered" :key="index">
+              <span>
+                {{ players[playerPair.x].first_name }} {{ players[playerPair.x].last_name }} - {{ players[playerPair.y].first_name }} {{ players[playerPair.y].last_name }}
+              </span>
+            </div>
+          </div>
+          <div class="noPlayers" v-else-if="inputValue > 0" >
+            <p class="red">No matches found</p>
+          </div>
+        </v-col>
+      </v-row>
+    </v-container>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+  <script>
+    let players = [];
+
+    var app = new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data: {
+        players: [],
+        playersHash: [],
+        playersFiltered: [],
+        inputValue: null,
+        loading: true,
+        cantBeReached: false
+      },
+      async mounted(){
+        this.loading = true;
+        try{
+          let data = await fetch('https://mach-eight.uc.r.appspot.com/');
+          
+          // The data is got from the server and saved in a local variable and a global one (data accesibility issues)
+          data = await data.json();
+          this.players = players = data.values;
+
+          // The players list is iterated and the data is mapped to a single correlation hash table
+          for( let i = players.length-1; i > 0; i--){
+            this.playersHash.push( 
+              ...players.map( 
+                (player, y) => {
+                  return {
+                    x: i, 
+                    y, 
+                    adds: parseInt(player.h_in) + parseInt(players[i].h_in) 
+                  };
+                }
+              )
+            )
+          }
+          // The hash table is filtered to remove the half of the coincidences that are duplicated (incluiding the same index match)
+          this.playersHash = this.playersHash.filter( pair => pair.x > pair.y );
+        }
+        catch( e ){
+          this.cantBeReached = true;
+        }
+
+        this.loading = false;
+      },
+      watch: {
+        inputValue( newVal ){
+          // The filter function is O(n) because we filter a single array by a property
+          this.playersFiltered = this.playersHash.filter( cross => cross.adds == newVal );
+        }
+      }
+    })
+  </script>
+
+  <style>
+    body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+    .container{ margin: 35px auto; }
+    .red{ color: darkred; }
+    .green{ color: darkgreen; }
+    .grey{ color: dimgray; }
+    .ma-20{ margin: 20px; }
+    .my-20{ margin-bottom: 20px; }
+    .flex-center{ align-items: center; }
+    .column{
+      display: flex;
+      justify-content: center;
+      flex-flow: column;
+    }
+  </style>
+</body>
+</html>
